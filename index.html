@@ -147,10 +147,45 @@
   #scanner{width:100%;max-width:480px;margin:0 auto;border-radius:var(--r-md);overflow:hidden;background:#000}
 
   @media (prefers-reduced-motion:no-preference){ .toast{animation:pop .18s ease-out} @keyframes pop{from{opacity:0;transform:translate(-50%,8px)}} }
+  .menu{display:grid;gap:8px}
+  .menu button{display:flex;justify-content:space-between;align-items:center;text-align:left;background:#fff;border:1px solid var(--line);
+    border-radius:var(--r-md);padding:16px}
+  .menu b{display:block;font-size:16px}
+  .menu small{color:var(--muted)}
+  .menu .chev{font-size:22px;color:var(--muted)}
+  .banner{background:var(--tag);border:1.5px solid #D9B65C;border-radius:var(--r-md);padding:10px 12px;margin:4px 0 8px;
+    display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:14px}
+  .results{display:grid;gap:6px;margin:6px 0 10px}
+  .results button{display:flex;justify-content:space-between;gap:8px;text-align:left;background:#fff;border:1px solid var(--line);
+    border-radius:10px;padding:10px 12px;font-size:14px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .field select,.field textarea{width:100%;border:1.5px solid var(--line);border-radius:10px;padding:12px;background:#fff}
+  .inrow{display:flex;gap:8px}
+  .inrow input{flex:1;min-width:0;border:1.5px solid var(--line);border-radius:10px;padding:12px;background:#fff}
+  .inrow button{border:0;border-radius:10px;background:var(--indigo);color:#fff;padding:0 14px;font-weight:600}
+  .mini{width:84px!important;padding:8px!important;text-align:right}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+  .chips button{border:1.5px solid var(--line);background:#fff;border-radius:999px;padding:4px 10px;font-size:13px}
+  .check{display:flex;gap:10px;align-items:center;font-size:15px;margin:12px 0}
+  .check input{width:20px;height:20px}
+  .note{font-size:13px;color:var(--muted);margin:4px 0}
+  #labelSheet{display:none}
   @media print{
-    body *{visibility:hidden} .receipt,.receipt *{visibility:visible}
-    .receipt{position:absolute;left:0;top:0;box-shadow:none;margin:0;width:80mm;padding:0}
+    body[data-print="receipt"] *{visibility:hidden}
+    body[data-print="receipt"] .receipt, body[data-print="receipt"] .receipt *{visibility:visible}
+    body[data-print="receipt"] .receipt{position:absolute;left:0;top:0;box-shadow:none;margin:0;width:80mm;padding:0}
+    body[data-print="labels"] > *:not(#labelSheet){display:none!important}
+    body[data-print="labels"] #labelSheet{display:block}
   }
+  .lbl{box-sizing:border-box;overflow:hidden;text-align:center;font-family:Arial,sans-serif;color:#000;
+    display:flex;flex-direction:column;justify-content:center;align-items:center;padding:1.5mm}
+  .lbl .ls{font-size:7pt}
+  .lbl .ln{font-size:8pt;font-weight:bold;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+  .lbl .lv{font-size:7.5pt}
+  .lbl .lp{font-size:10pt;font-weight:bold}
+  .lbl svg{max-width:100%;height:auto}
+  .a4grid{display:grid;grid-template-columns:repeat(3,63.5mm);grid-auto-rows:33.9mm;column-gap:2.5mm}
+  .roll .lbl{width:50mm;height:25mm;page-break-after:always;break-after:page}
 </style>
 </head>
 <body>
@@ -175,10 +210,12 @@
     <nav role="tablist">
       <button role="tab" id="tabSell" aria-selected="true">Sell</button>
       <button role="tab" id="tabToday" aria-selected="false">Today</button>
+      <button role="tab" id="tabMore" aria-selected="false">More</button>
     </nav>
   </header>
 
   <main id="vSell">
+    <div class="banner hidden" id="exBanner"></div>
     <div class="searchbar">
       <input id="q" type="search" placeholder="Search name, SKU or barcode" autocomplete="off" enterkeyhint="search">
       <button class="btn-scan" id="scanBtn">Scan</button>
@@ -188,6 +225,16 @@
   </main>
 
   <main id="vToday" class="hidden"></main>
+
+  <main id="vMore" class="hidden">
+    <div class="menu">
+      <button id="mReturn"><span><b>Return / exchange</b><small>Find a bill, take items back, refund or give exchange credit</small></span><span class="chev">›</span></button>
+      <button id="mExpense"><span><b>Add expense</b><small>Rent, salaries, transport, bills</small></span><span class="chev">›</span></button>
+      <button id="mStockIn" class="owner-only"><span><b>Stock in</b><small>Record a supplier delivery</small></span><span class="chev">›</span></button>
+      <button id="mNewProd" class="owner-only"><span><b>New product</b><small>Add a design with its sizes and colours</small></span><span class="chev">›</span></button>
+      <button id="mLabels"><span><b>Print barcode labels</b><small>Tags for items, ready to scan</small></span><span class="chev">›</span></button>
+    </div>
+  </main>
 
   <div class="billbar" id="billbar">
     <button id="reviewBtn" disabled><span id="bbCount">No items</span><span class="num" id="bbTotal">₹0</span></button>
@@ -223,10 +270,107 @@
     <div class="actions">
       <button id="printBtn">Print</button>
       <button id="waBtn">Send on WhatsApp</button>
+      <button id="rcptReturnBtn" style="grid-column:1/-1">Return items from this bill</button>
       <button class="primary" id="newSaleBtn">New sale</button>
     </div>
   </div>
 </section>
+
+<!-- Return / exchange -->
+<section id="vReturn" class="sheet hidden" aria-label="Return or exchange">
+  <div class="sheet-head"><button class="icon-btn" id="retBack">Back</button><h2>Return / exchange</h2></div>
+  <div class="wrap">
+    <div id="retFind">
+      <div class="field"><label for="retQ">Bill number or customer mobile</label>
+        <div class="inrow"><input id="retQ" type="search" autocomplete="off" placeholder="e.g. SAL-20261004-03 or 98765"><button id="retFindBtn">Find</button></div></div>
+      <div class="results" id="retResults"></div>
+      <p class="note">Tip: you can also open a bill from the Today tab and tap “Return items from this bill”.</p>
+    </div>
+    <div id="retPick" class="hidden">
+      <div id="retHead" class="note"></div>
+      <div id="retLines"></div>
+      <div class="field"><label>Give back as</label><div class="seg" id="retModes"></div></div>
+      <div class="field"><label for="retReason">Reason (optional)</label><input id="retReason" type="text" autocomplete="off" placeholder="Size issue, defect…"></div>
+      <div class="totals num" id="retTotals"></div>
+    </div>
+  </div>
+  <div class="billbar hidden" id="retBar"><button id="retSubmit"><span id="retSubmitLabel">Refund</span><span class="num" id="retSubmitAmt"></span></button></div>
+</section>
+
+<!-- Expense -->
+<section id="vExpense" class="sheet hidden" aria-label="Add expense">
+  <div class="sheet-head"><button class="icon-btn" id="expBack">Back</button><h2>Add expense</h2></div>
+  <div class="wrap">
+    <div class="grid2">
+      <div class="field"><label for="expDate">Date</label><input id="expDate" type="date"></div>
+      <div class="field"><label for="expAmt">Amount (₹)</label><input id="expAmt" type="number" inputmode="decimal" min="0"></div>
+    </div>
+    <div class="field"><label for="expCat">Category</label><select id="expCat"></select></div>
+    <div class="field"><label>Paid by</label><div class="seg" id="expModes" style="grid-template-columns:repeat(3,1fr)"></div></div>
+    <div class="field"><label for="expNotes">Notes (optional)</label><input id="expNotes" type="text" autocomplete="off"></div>
+    <h3 style="margin:22px 0 8px;font-size:16px" id="expListHead">This month</h3>
+    <div id="expList"></div>
+  </div>
+  <div class="billbar"><button id="expSave"><span>Save expense</span><span class="num" id="expSaveAmt"></span></button></div>
+</section>
+
+<!-- Stock in -->
+<section id="vStockIn" class="sheet hidden" aria-label="Stock in">
+  <div class="sheet-head"><button class="icon-btn" id="siBack">Back</button><h2>Stock in</h2><button class="link" id="siNewProd">+ New product</button></div>
+  <div class="wrap">
+    <div class="grid2">
+      <div class="field"><label for="siSupplier">Supplier</label><input id="siSupplier" type="text" autocomplete="off" list="siSuppliers"></div>
+      <div class="field"><label for="siInvoice">Invoice no. (optional)</label><input id="siInvoice" type="text" autocomplete="off"></div>
+    </div>
+    <datalist id="siSuppliers"></datalist>
+    <div class="field"><label for="siQ">Add items</label>
+      <div class="inrow"><input id="siQ" type="search" autocomplete="off" placeholder="Search or scan"><button id="siScan">Scan</button></div></div>
+    <div class="results" id="siResults"></div>
+    <div id="siLines"></div>
+    <label class="check"><input type="checkbox" id="siUpdCost" checked> Update cost price in the sheet to these costs</label>
+  </div>
+  <div class="billbar"><button id="siSave"><span id="siSaveLabel">Save stock in</span><span class="num" id="siSaveAmt"></span></button></div>
+</section>
+
+<!-- New product -->
+<section id="vNewProd" class="sheet hidden" aria-label="New product">
+  <div class="sheet-head"><button class="icon-btn" id="npBack">Back</button><h2>New product</h2></div>
+  <div class="wrap">
+    <div class="field"><label for="npName">Product name</label><input id="npName" type="text" autocomplete="off" placeholder="e.g. Women's Rayon Kurti"></div>
+    <div class="field"><label for="npCat">Category</label><select id="npCat"></select></div>
+    <div class="field"><label for="npSizes">Sizes (comma separated)</label><input id="npSizes" type="text" autocomplete="off" placeholder="S, M, L, XL">
+      <div class="chips" id="npSizeChips"></div></div>
+    <div class="field"><label for="npColours">Colours (comma separated)</label><input id="npColours" type="text" autocomplete="off" placeholder="Black, Navy"></div>
+    <div class="grid2">
+      <div class="field"><label for="npPrice">Selling price (₹)</label><input id="npPrice" type="number" inputmode="decimal" min="0"></div>
+      <div class="field"><label for="npCost">Cost price (₹)</label><input id="npCost" type="number" inputmode="decimal" min="0"></div>
+      <div class="field"><label for="npReorder">Reorder level</label><input id="npReorder" type="number" inputmode="numeric" min="0" value="5"></div>
+      <div class="field"><label for="npGst">GST %</label><input id="npGst" type="number" inputmode="decimal" min="0" value="5"></div>
+      <div class="field"><label for="npBrand">Brand (optional)</label><input id="npBrand" type="text" autocomplete="off"></div>
+      <div class="field"><label for="npHsn">HSN (optional)</label><input id="npHsn" type="text" inputmode="numeric" autocomplete="off"></div>
+    </div>
+    <p class="note" id="npPreview"></p>
+  </div>
+  <div class="billbar"><button id="npSave"><span>Create and add stock</span><span></span></button></div>
+</section>
+
+<!-- Labels -->
+<section id="vLabels" class="sheet hidden" aria-label="Barcode labels">
+  <div class="sheet-head"><button class="icon-btn" id="lbBack">Back</button><h2>Barcode labels</h2><button class="link danger" id="lbClear">Clear</button></div>
+  <div class="wrap">
+    <div class="field"><label for="lbQ">Add items</label>
+      <div class="inrow"><input id="lbQ" type="search" autocomplete="off" placeholder="Search or scan"><button id="lbScan">Scan</button></div></div>
+    <div class="results" id="lbResults"></div>
+    <button class="link" id="lbAll">+ Add every item (1 label each)</button>
+    <div id="lbLines"></div>
+    <div class="field"><label>Label paper</label><div class="seg" id="lbFormat" style="grid-template-columns:1fr 1fr"></div></div>
+    <p class="note">A4 sheet: 24 labels per page (3 × 8, 63.5 × 33.9 mm). Roll: one 50 × 25 mm label per page, for thermal label printers. In the print dialog, set margins to “None” and scale to 100%.</p>
+  </div>
+  <div class="billbar"><button id="lbPrint"><span>Print labels</span><span class="num" id="lbCount"></span></button></div>
+</section>
+
+<div id="labelSheet"></div>
+<style id="pageStyle"></style>
 
 <!-- Scanner -->
 <section id="vScan" class="sheet hidden" aria-label="Scan barcode">
@@ -262,7 +406,7 @@ setTimeout(function(){
 <script>
 const $ = id => document.getElementById(id);
 const NL = String.fromCharCode(10);
-const fmt = n => '₹' + Number(n || 0).toLocaleString('en-IN', {maximumFractionDigits: 2});
+const fmt = n => (Number(n) < 0 ? '−' : '') + '₹' + Math.abs(Number(n || 0)).toLocaleString('en-IN', {maximumFractionDigits: 2});
 const esc = s => {
   const d = document.createElement('div');
   d.textContent = s == null ? '' : String(s);
@@ -361,7 +505,7 @@ async function enterApp(){
   $('shopName').textContent = S.shop.name;
   $('loginShop').textContent = S.shop.name;
   $('whoBtn').textContent = S.user.name + ' · Sign out';
-  await loadCatalog();
+  await Promise.all([loadCatalog(), loadMeta()]);
   show('vLogin', false); show('app', true);
   renderBillBar();
 }
@@ -441,13 +585,14 @@ function addToCart(sku, silent){
 function cartTotals(){
   const sub = S.cart.reduce((s, l) => s + S.bySku[l.sku].price * l.qty - (l.lineDiscount || 0), 0);
   const bd = Math.max(0, Number($('billDisc').value) || 0);
-  return { sub, bd, total: sub - bd, pcs: S.cart.reduce((s, l) => s + l.qty, 0) };
+  const credit = S.exchange ? S.exchange.credit : 0;
+  return { sub, bd, total: sub - bd, credit, collect: sub - bd - credit, pcs: S.cart.reduce((s, l) => s + l.qty, 0) };
 }
 function renderBillBar(){
   const t = cartTotals();
   $('reviewBtn').disabled = !S.cart.length;
   $('bbCount').textContent = S.cart.length ? `Review bill · ${t.pcs} pc${t.pcs > 1 ? 's' : ''}` : 'No items';
-  $('bbTotal').textContent = fmt(t.total);
+  $('bbTotal').textContent = fmt(S.exchange ? t.collect : t.total);
 }
 $('reviewBtn').onclick = () => { renderBill(); show('vBill', true); };
 $('billBack').onclick = () => { show('vBill', false); renderList(); };
@@ -472,10 +617,12 @@ function renderBill(){
 function renderTotals(){
   const t = cartTotals();
   $('totals').innerHTML = `<div><span>Items (${t.pcs} pcs)</span><span>${fmt(t.sub)}</span></div>` +
-    (t.bd ? `<div><span>Bill discount</span><span>−${fmt(t.bd)}</span></div>` : '') +
-    `<div class="grand"><span>To collect</span><span>${fmt(t.total)}</span></div>`;
-  $('cbTotal').textContent = fmt(t.total);
-  $('completeBtn').disabled = !S.cart.length || t.total < 0;
+    (t.bd ? `<div><span>Bill discount</span><span>${fmt(-t.bd)}</span></div>` : '') +
+    (t.credit ? `<div><span>Bill total</span><span>${fmt(t.total)}</span></div><div><span>Exchange credit</span><span>−${fmt(t.credit)}</span></div>` : '') +
+    `<div class="grand"><span>To collect</span><span>${fmt(t.credit ? t.collect : t.total)}</span></div>` +
+    (t.credit && t.collect < 0 ? `<div class="note" style="color:var(--bad)">Add items worth at least ${fmt(-t.collect)} more to use the full exchange credit.</div>` : '');
+  $('cbTotal').textContent = fmt(t.credit ? t.collect : t.total);
+  $('completeBtn').disabled = !S.cart.length || t.total < 0 || (t.credit && t.collect < 0);
   renderBillBar();
 }
 $('lines').onclick = e => {
@@ -506,6 +653,7 @@ $('completeBtn').onclick = async () => {
     const r = await call('submitSale', S.token, {
       clientId: S.clientId, items: S.cart, billDiscount: t.bd, paymentMode: S.payMode,
       customerName: $('custName').value.trim(), customerPhone: $('custPhone').value.trim(),
+      exchangeRef: S.exchange ? S.exchange.ref : '',
     });
     resetBill();
     show('vBill', false);
@@ -515,7 +663,7 @@ $('completeBtn').onclick = async () => {
   show('busy', false);
 };
 function resetBill(){
-  S.cart = []; S.clientId = null; S.payMode = 'UPI';
+  S.cart = []; S.clientId = null; S.payMode = 'UPI'; S.exchange = null; renderExchangeBanner();
   $('billDisc').value = ''; $('custName').value = ''; $('custPhone').value = '';
   renderBillBar(); renderList();
 }
@@ -529,18 +677,25 @@ function showReceipt(r, fresh){
     <div class="c">${esc(r.shop.addressLine)}<br>${esc(r.shop.phone)}</div><hr>
     <div class="row sub"><span>${esc(r.saleId)}</span><span>${esc(r.dateTime)}</span></div>
     ${r.customerName ? `<div class="sub">Customer: ${esc(r.customerName)}</div>` : ''}<hr>
-    ${r.items.map(i => `<div class="row"><span>${esc(i.name)}</span><span>${fmt(i.lineTotal)}</span></div>
+    ${r.items.map(i => r.total < 0
+      ? `<div class="row"><span>${esc(i.name)}</span><span>${fmt(Math.abs(i.lineTotal))}</span></div>
+      <div class="sub">${esc(i.colour)} ${esc(i.size)} · ${Math.abs(i.qty)} returned</div>`
+      : `<div class="row"><span>${esc(i.name)}</span><span>${fmt(i.lineTotal)}</span></div>
       <div class="sub">${esc(i.colour)} ${esc(i.size)} · ${i.qty} × ${fmt(i.price)}${Number(i.lineDiscount) ? ' − ' + fmt(i.lineDiscount) : ''}</div>`).join('')}
     <hr>
-    ${r.billDiscount ? `<div class="row"><span>Subtotal</span><span>${fmt(sub)}</span></div>
+    ${r.billDiscount && r.total > 0 ? `<div class="row"><span>Subtotal</span><span>${fmt(sub)}</span></div>
       <div class="row"><span>Discount</span><span>−${fmt(r.billDiscount)}</span></div>` : ''}
-    <div class="row big"><span>${r.total < 0 ? 'Refund' : 'Total'}</span><span>${fmt(Math.abs(r.total))}</span></div>
+    ${r.returnOf ? `<div class="sub">Return of bill ${esc(r.returnOf)}</div>` : ''}
+    <div class="row big"><span>${r.total < 0 ? (r.paymentMode === 'Exchange' ? 'Exchange credit' : 'Refund') : 'Total'}</span><span>${fmt(Math.abs(r.total))}</span></div>
+    ${r.exchangeCredit ? `<div class="row"><span>Exchange credit (${esc(r.exchangeRef)})</span><span>−${fmt(r.exchangeCredit)}</span></div>
+      <div class="row big"><span>Paid</span><span>${fmt(r.total - r.exchangeCredit)}</span></div>` : ''}
     <div class="row sub"><span>Paid by ${esc(r.paymentMode)}</span><span>Prices incl. GST</span></div><hr>
     <div class="c">${esc(r.shop.receiptFooter)}</div>`;
   $('waBtn').classList.toggle('hidden', !r.customerPhone);
+  $('rcptReturnBtn').classList.toggle('hidden', !(r.total > 0));
   show('vReceipt', true);
 }
-$('printBtn').onclick = () => window.print();
+$('printBtn').onclick = () => printAs('receipt');
 $('waBtn').onclick = () => {
   const r = S.lastReceipt; if (!r) return;
   let ph = r.customerPhone.replace(/[^0-9]/g, '');
@@ -553,13 +708,20 @@ $('waBtn').onclick = () => {
 };
 $('newSaleBtn').onclick = $('rcptBack').onclick = () => { show('vReceipt', false); $('q').focus(); };
 
-function setTab(today){
-  $('tabSell').setAttribute('aria-selected', !today); $('tabToday').setAttribute('aria-selected', today);
-  show('vSell', !today); show('vToday', today); show('billbar', !today);
-  if (today) loadToday();
+function setTab(which){
+  if (which === true) which = 'today';
+  if (which === false || !which) which = 'sell';
+  ['sell', 'today', 'more'].forEach(t => {
+    const id = 'tab' + t[0].toUpperCase() + t.slice(1);
+    $(id).setAttribute('aria-selected', t === which);
+    show('v' + t[0].toUpperCase() + t.slice(1), t === which);
+  });
+  show('billbar', which === 'sell');
+  if (which === 'today') loadToday();
 }
-$('tabSell').onclick = () => setTab(false);
-$('tabToday').onclick = () => setTab(true);
+$('tabSell').onclick = () => setTab('sell');
+$('tabToday').onclick = () => setTab('today');
+$('tabMore').onclick = () => setTab('more');
 
 async function loadToday(){
   $('vToday').innerHTML = '<div class="empty">Loading today’s bills…</div>';
@@ -591,7 +753,9 @@ function loadScanner(){
     setTimeout(res, 8000);
   });
 }
-$('scanBtn').onclick = async () => {
+$('scanBtn').onclick = () => openScanner('sell');
+async function openScanner(target){
+  S.scanTarget = target;
   show('vScan', true);
   $('scanMsg').textContent = 'Starting camera…';
   await loadScanner();
@@ -605,7 +769,7 @@ $('scanBtn').onclick = async () => {
       if (code === lastCode && now - lastAt < 1500) return;
       lastCode = code; lastAt = now;
       const hit = S.byCode[code] || S.byCode[code.toUpperCase()];
-      if (hit) { if (addToCart(hit.sku)) $('scanMsg').textContent = `Added ${hit.name} · ${hit.colour} ${hit.size}`; }
+      if (hit) { if (onScanHit(hit, S.scanTarget)) $('scanMsg').textContent = `Added ${hit.name} · ${hit.colour} ${hit.size}`; }
       else $('scanMsg').textContent = `No item with barcode ${code}. Check the Variants tab.`;
     });
   } catch(e){
@@ -614,10 +778,11 @@ $('scanBtn').onclick = async () => {
       ? 'Camera permission is blocked for this site. Tap the lock or settings icon next to the address, allow Camera, then tap Scan again.'
       : 'Camera unavailable (' + (e.message || e) + '). Type the barcode in the search box, or use a Bluetooth scanner.';
   }
-};
+}
 $('scanClose').onclick = async () => {
   if (scanner && scanner.isScanning) { try { await scanner.stop(); } catch(e){} }
   show('vScan', false);
+  if (S.scanTarget === 'sell' && !$('vBill').classList.contains('hidden')) renderBill();
 };
 
 const wedge = { buf: '', last: 0 };
@@ -633,13 +798,427 @@ document.addEventListener('keydown', e => {
     const code = wedge.buf; wedge.buf = '';
     if (code.length >= 4) {
       const hit = S.byCode[code] || S.byCode[code.toUpperCase()];
-      if (hit) addToCart(hit.sku); else toast('No item with barcode ' + code, true);
+      const target = currentScanTarget();
+      if (!target) return;
+      if (hit) onScanHit(hit, target); else toast('No item with barcode ' + code, true);
       e.preventDefault();
     }
   } else if (e.key.length === 1) {
     wedge.buf += e.key;
   }
 });
+
+</script>
+<script>
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2);
+const todayISO = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+const isOpen = id => !$(id).classList.contains('hidden');
+const SHEETS = ['vBill', 'vReceipt', 'vReturn', 'vExpense', 'vStockIn', 'vNewProd', 'vLabels', 'vScan'];
+
+async function loadMeta(){
+  S.meta = await call('getMeta', S.token);
+  document.querySelectorAll('.owner-only').forEach(el => el.classList.toggle('hidden', S.user.role !== 'Owner'));
+}
+
+function loadScript(src){
+  return new Promise(res => {
+    if (document.querySelector('script[src="' + src + '"]')) return res();
+    const sc = document.createElement('script');
+    sc.src = src; sc.onload = sc.onerror = () => res();
+    document.head.appendChild(sc);
+    setTimeout(res, 8000);
+  });
+}
+
+function printAs(kind){
+  document.body.dataset.print = kind;
+  window.print();
+}
+window.addEventListener('afterprint', () => { delete document.body.dataset.print; });
+
+function currentScanTarget(){
+  if (isOpen('vScan')) return null;
+  if (isOpen('vStockIn')) return 'stockin';
+  if (isOpen('vLabels')) return 'labels';
+  if (isOpen('vBill')) return 'sell';
+  if (SHEETS.some(isOpen)) return null;
+  return isOpen('vSell') ? 'sell' : null;
+}
+function onScanHit(hit, target){
+  if (target === 'stockin') return siAdd(hit.sku);
+  if (target === 'labels') return lbAdd(hit.sku);
+  const ok = addToCart(hit.sku);
+  if (ok && isOpen('vBill')) renderBill();
+  return ok;
+}
+
+function itemMatches(q){
+  q = q.trim().toLowerCase();
+  if (!q) return [];
+  return S.items.filter(i => i.name.toLowerCase().includes(q) || i.sku.toLowerCase().includes(q) ||
+    i.barcode.includes(q) || (i.name + ' ' + i.colour + ' ' + i.size).toLowerCase().includes(q)).slice(0, 12);
+}
+function bindPicker(inputId, resultsId, onPick){
+  const render = () => {
+    const list = itemMatches($(inputId).value);
+    $(resultsId).innerHTML = list.map(i => `<button data-sku="${esc(i.sku)}"><span>${esc(i.name)}<br><span class="pmeta">${esc(i.colour)} · ${esc(i.size)}</span></span><span class="pmeta num">${i.stock} in stock</span></button>`).join('');
+  };
+  $(inputId).addEventListener('input', render);
+  $(inputId).addEventListener('keydown', e => {
+    if (e.key !== 'Enter') return;
+    const code = $(inputId).value.trim();
+    const hit = S.byCode[code] || S.byCode[code.toUpperCase()];
+    const list = itemMatches(code);
+    const pick = hit || (list.length === 1 ? list[0] : null);
+    if (pick) { onPick(pick.sku); $(inputId).value = ''; render(); }
+  });
+  $(resultsId).onclick = e => {
+    const b = e.target.closest('[data-sku]'); if (!b) return;
+    onPick(b.dataset.sku); $(inputId).value = ''; render();
+  };
+}
+function seg(containerId, options, current, onChange){
+  $(containerId).innerHTML = options.map(o => `<button aria-pressed="${o === current}" data-v="${esc(o)}">${esc(o)}</button>`).join('');
+  $(containerId).onclick = e => { const b = e.target.closest('[data-v]'); if (b) onChange(b.dataset.v); };
+}
+
+$('mReturn').onclick = () => openReturn();
+$('mExpense').onclick = () => openExpense();
+$('mStockIn').onclick = () => openStockIn();
+$('mNewProd').onclick = () => openNewProd();
+$('mLabels').onclick = () => openLabels();
+
+/* ---------------- Exchange banner ---------------- */
+function renderExchangeBanner(){
+  const b = $('exBanner');
+  if (!S.exchange) { b.classList.add('hidden'); return; }
+  b.innerHTML = `<span><b>Exchange credit ${fmt(S.exchange.credit)}</b><br><span class="pmeta">From ${esc(S.exchange.ref)}. Add the new items; the credit comes off this bill.</span></span>
+    <button class="link danger" id="exDrop">Remove</button>`;
+  b.classList.remove('hidden');
+  $('exDrop').onclick = () => {
+    if (!confirm('Remove the exchange credit from this bill? It stays recorded in the sheet but will not be applied.')) return;
+    S.exchange = null; renderExchangeBanner(); renderBillBar();
+  };
+}
+
+/* ---------------- Returns ---------------- */
+const R = { sale: null, qty: {}, mode: 'Cash', clientId: null };
+function openReturn(saleId){
+  R.sale = null; R.qty = {}; R.mode = 'Cash'; R.clientId = null;
+  $('retQ').value = ''; $('retResults').innerHTML = ''; $('retReason').value = '';
+  show('retFind', true); show('retPick', false); show('retBar', false);
+  show('vReturn', true);
+  if (saleId) loadReturnBill(saleId); else $('retQ').focus();
+}
+$('retBack').onclick = () => {
+  if (isOpen('retPick') && !$('retQ').dataset.direct) { show('retPick', false); show('retBar', false); show('retFind', true); return; }
+  delete $('retQ').dataset.direct; show('vReturn', false);
+};
+async function findBills(){
+  const q = $('retQ').value.trim();
+  $('retResults').innerHTML = '<div class="note">Searching…</div>';
+  try {
+    const list = await call('searchBills', S.token, q);
+    $('retResults').innerHTML = list.map(b => `<button data-sale="${esc(b.saleId)}"><span><b>${esc(b.saleId)}</b><br><span class="pmeta">${esc(b.date)}${b.customerName ? ' · ' + esc(b.customerName) : ''}${b.customerPhone ? ' · ' + esc(b.customerPhone) : ''}</span></span><b class="num">${fmt(b.total)}</b></button>`).join('')
+      || '<div class="note">No bills found. Check the number, or search by the last digits of the customer’s mobile.</div>';
+  } catch(e){ $('retResults').innerHTML = `<div class="note" style="color:var(--bad)">${esc(e.message)}</div>`; }
+}
+$('retFindBtn').onclick = findBills;
+$('retQ').addEventListener('keydown', e => { if (e.key === 'Enter') findBills(); });
+$('retResults').onclick = e => { const b = e.target.closest('[data-sale]'); if (b) loadReturnBill(b.dataset.sale); };
+$('rcptReturnBtn').onclick = () => {
+  const id = S.lastReceipt && S.lastReceipt.saleId;
+  show('vReceipt', false);
+  $('retQ').dataset.direct = '1';
+  openReturn(id);
+};
+
+async function loadReturnBill(saleId){
+  show('retFind', false); show('retPick', true); show('retBar', false);
+  $('retHead').textContent = 'Loading bill…'; $('retLines').innerHTML = ''; $('retTotals').innerHTML = '';
+  try {
+    R.sale = await call('getSaleForReturn', S.token, saleId);
+    R.qty = {}; R.clientId = uid();
+    renderReturn();
+  } catch(e){ $('retHead').innerHTML = `<span style="color:var(--bad)">${esc(e.message)}</span>`; }
+}
+function returnTotal(){
+  return R.sale ? R.sale.lines.reduce((s, l) => s + (R.qty[l.sku] || 0) * l.refundPerPiece, 0) : 0;
+}
+function renderReturn(){
+  const s = R.sale;
+  $('retHead').innerHTML = `<b>${esc(s.saleId)}</b> · ${esc(s.dateTime)} · ${fmt(s.total)}${s.customerName ? ' · ' + esc(s.customerName) : ''}` +
+    (s.tooOld ? `<div style="color:var(--bad);margin-top:6px">This bill is ${s.ageDays} days old. Only the owner can accept returns after ${S.meta.returnDays} days.</div>` : '');
+  $('retLines').innerHTML = s.lines.map(l => {
+    const q = R.qty[l.sku] || 0;
+    return `<div class="line">
+      <div><div class="pname">${esc(l.name)}</div><div class="pmeta">${esc(l.colour)} · ${esc(l.size)} · bought ${l.qty}${l.returnedQty ? ', ' + l.returnedQty + ' already returned' : ''}</div>
+        <div class="pmeta">Refund ${fmt(l.refundPerPiece)} each (after discounts)</div></div>
+      <div class="lt num">${q ? fmt(q * l.refundPerPiece) : ''}</div>
+      <div class="line-actions">${l.returnableQty > 0 ? `
+        <div class="stepper"><button data-rdec="${esc(l.sku)}" aria-label="One less">−</button><span class="num">${q}</span><button data-rinc="${esc(l.sku)}" aria-label="One more">+</button></div>
+        <span class="pmeta">of ${l.returnableQty} returnable</span>` : '<span class="pmeta">Nothing left to return</span>'}</div></div>`;
+  }).join('');
+  seg('retModes', ['Cash', 'UPI', 'Card', 'Exchange'], R.mode, v => { R.mode = v; renderReturn(); });
+  const t = returnTotal();
+  $('retTotals').innerHTML = `<div class="grand"><span>${R.mode === 'Exchange' ? 'Exchange credit' : 'Refund'}</span><span>${fmt(t)}</span></div>` +
+    (R.mode === 'Exchange' ? '<div class="note">The credit is applied to the next bill you make now.</div>' : '');
+  $('retSubmitLabel').textContent = R.mode === 'Exchange' ? 'Give exchange credit' : 'Refund by ' + R.mode;
+  $('retSubmitAmt').textContent = fmt(t);
+  $('retSubmit').disabled = !(t > 0) || s.tooOld;
+  show('retBar', true);
+}
+$('retLines').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  const sku = b.dataset.rinc || b.dataset.rdec; if (!sku) return;
+  const l = R.sale.lines.find(x => x.sku === sku);
+  const q = (R.qty[sku] || 0) + (b.dataset.rinc ? 1 : -1);
+  R.qty[sku] = Math.max(0, Math.min(l.returnableQty, q));
+  renderReturn();
+};
+$('retSubmit').onclick = async () => {
+  const items = Object.keys(R.qty).filter(k => R.qty[k] > 0).map(k => ({ sku: k, qty: R.qty[k] }));
+  if (!items.length) return;
+  show('busy', true);
+  try {
+    const r = await call('submitReturn', S.token, { clientId: R.clientId, saleId: R.sale.saleId, items,
+      refundMode: R.mode, reason: $('retReason').value.trim() });
+    show('vReturn', false); delete $('retQ').dataset.direct;
+    loadCatalog().catch(() => {});
+    if (R.mode === 'Exchange') {
+      S.exchange = { ref: r.saleId, credit: Math.abs(r.total) };
+      renderExchangeBanner(); setTab('sell'); renderBillBar();
+      toast('Exchange credit ' + fmt(Math.abs(r.total)) + ' ready. Add the new items.');
+    } else {
+      showReceipt(r, true);
+    }
+  } catch(e){ toast(e.message, true); }
+  show('busy', false);
+};
+
+/* ---------------- Expenses ---------------- */
+const X = { mode: 'Cash', clientId: null };
+function openExpense(){
+  X.mode = 'Cash'; X.clientId = uid();
+  $('expDate').value = todayISO(); $('expDate').max = todayISO();
+  $('expAmt').value = ''; $('expNotes').value = '';
+  $('expCat').innerHTML = '<option value="">Choose…</option>' + S.meta.expenseCategories.map(c => `<option>${esc(c)}</option>`).join('');
+  renderExpModes(); updExpAmt();
+  show('vExpense', true);
+  loadExpenses();
+}
+function renderExpModes(){ seg('expModes', ['Cash', 'UPI', 'Card'], X.mode, v => { X.mode = v; renderExpModes(); }); }
+function updExpAmt(){ $('expSaveAmt').textContent = Number($('expAmt').value) > 0 ? fmt($('expAmt').value) : ''; }
+$('expAmt').addEventListener('input', updExpAmt);
+$('expBack').onclick = () => show('vExpense', false);
+async function loadExpenses(){
+  $('expList').innerHTML = '<div class="note">Loading…</div>';
+  try {
+    const d = await call('listExpenses', S.token);
+    $('expListHead').textContent = `This month · ${d.scope} · ${fmt(d.total)}`;
+    $('expList').innerHTML = d.items.map(x => `<div class="bill num" style="cursor:default"><span><b>${esc(x.category)}</b> · ${esc(x.date)}<br><span class="pmeta">${esc(x.paymentMode)}${x.notes ? ' · ' + esc(x.notes) : ''}</span></span><b>${fmt(x.amount)}</b></div>`).join('')
+      || '<div class="note">No expenses recorded this month yet.</div>';
+  } catch(e){ $('expList').innerHTML = `<div class="note">${esc(e.message)}</div>`; }
+}
+$('expSave').onclick = async () => {
+  if (!$('expCat').value) return toast('Choose a category', true);
+  if (!(Number($('expAmt').value) > 0)) return toast('Enter the amount', true);
+  show('busy', true);
+  try {
+    await call('submitExpense', S.token, { clientId: X.clientId, date: $('expDate').value, category: $('expCat').value,
+      amount: Number($('expAmt').value), paymentMode: X.mode, notes: $('expNotes').value.trim() });
+    toast('Expense saved');
+    X.clientId = uid(); $('expAmt').value = ''; $('expNotes').value = ''; $('expCat').value = ''; updExpAmt();
+    loadExpenses();
+  } catch(e){ toast(e.message, true); }
+  show('busy', false);
+};
+
+/* ---------------- Stock in ---------------- */
+const SI = { lines: [], clientId: null };
+function openStockIn(prefillSkus){
+  SI.clientId = uid();
+  if (prefillSkus) SI.lines = prefillSkus.map(sku => ({ sku, qty: '', cost: (S.bySku[sku] || {}).cost || 0 }));
+  const sup = JSON.parse(store.get('pos.suppliers') || '[]');
+  $('siSuppliers').innerHTML = sup.map(x => `<option value="${esc(x)}">`).join('');
+  renderStockIn();
+  show('vStockIn', true);
+  if (prefillSkus) toast('Enter the quantity received for each new item');
+}
+function siAdd(sku){
+  const it = S.bySku[sku]; if (!it) return false;
+  const l = SI.lines.find(x => x.sku === sku);
+  if (l) l.qty = (Number(l.qty) || 0) + 1; else SI.lines.push({ sku, qty: 1, cost: it.cost || 0 });
+  toast(`Added ${it.name} · ${it.colour} ${it.size}`);
+  renderStockIn();
+  return true;
+}
+function renderStockIn(){
+  $('siLines').innerHTML = SI.lines.map((l, i) => {
+    const it = S.bySku[l.sku] || { name: l.sku, colour: '', size: '', stock: 0 };
+    return `<div class="line">
+      <div><div class="pname">${esc(it.name)}</div><div class="pmeta">${esc(it.colour)} · ${esc(it.size)} · now ${it.stock} in stock</div></div>
+      <div class="lt num">${fmt((Number(l.qty) || 0) * (Number(l.cost) || 0))}</div>
+      <div class="line-actions">
+        <label class="pmeta">Qty <input class="mini" type="number" inputmode="numeric" min="0" data-siq="${i}" value="${esc(l.qty)}"></label>
+        <label class="pmeta">Cost ₹ <input class="mini" type="number" inputmode="decimal" min="0" data-sic="${i}" value="${esc(l.cost)}"></label>
+        <button class="link danger" data-sirm="${i}">Remove</button>
+      </div></div>`;
+  }).join('') || '<div class="empty">Search or scan the items in this delivery.</div>';
+  siTotals();
+}
+function siTotals(){
+  const pcs = SI.lines.reduce((s, l) => s + (Number(l.qty) || 0), 0);
+  const tot = SI.lines.reduce((s, l) => s + (Number(l.qty) || 0) * (Number(l.cost) || 0), 0);
+  $('siSaveLabel').textContent = pcs ? `Save stock in · ${pcs} pcs` : 'Save stock in';
+  $('siSaveAmt').textContent = fmt(tot);
+  $('siSave').disabled = !pcs;
+}
+$('siLines').addEventListener('input', e => {
+  const t = e.target;
+  if (t.dataset.siq !== undefined) SI.lines[t.dataset.siq].qty = t.value;
+  if (t.dataset.sic !== undefined) SI.lines[t.dataset.sic].cost = t.value;
+  siTotals();
+});
+$('siLines').addEventListener('change', () => renderStockIn());
+$('siLines').addEventListener('click', e => {
+  const b = e.target.closest('[data-sirm]'); if (!b) return;
+  SI.lines.splice(Number(b.dataset.sirm), 1); renderStockIn();
+});
+bindPicker('siQ', 'siResults', siAdd);
+$('siScan').onclick = () => openScanner('stockin');
+$('siBack').onclick = () => {
+  if (SI.lines.length && !confirm('Leave without saving? The items you added stay here until you sign out.')) return;
+  show('vStockIn', false);
+};
+$('siNewProd').onclick = () => openNewProd();
+$('siSave').onclick = async () => {
+  const supplier = $('siSupplier').value.trim();
+  if (!supplier) return toast('Enter the supplier name', true);
+  const items = SI.lines.filter(l => Number(l.qty) > 0).map(l => ({ sku: l.sku, qty: Math.floor(Number(l.qty)), unitCost: Number(l.cost) || 0 }));
+  if (!items.length) return toast('Enter quantities', true);
+  show('busy', true);
+  try {
+    const r = await call('submitPurchase', S.token, { clientId: SI.clientId, supplier, invoiceNo: $('siInvoice').value.trim(),
+      items, updateCostPrice: $('siUpdCost').checked });
+    const sup = JSON.parse(store.get('pos.suppliers') || '[]').filter(x => x !== supplier);
+    store.set('pos.suppliers', JSON.stringify([supplier, ...sup].slice(0, 20)));
+    SI.lines = []; SI.clientId = uid(); $('siInvoice').value = '';
+    await loadCatalog();
+    show('vStockIn', false);
+    const pcs = r.items.reduce((s, i) => s + i.qty, 0);
+    toast(`Saved ${r.purchaseId}: ${pcs} pcs, ${fmt(r.total)}`);
+    if (confirm(`Stock saved (${pcs} pieces). Print barcode labels for them now?`)) openLabels(r.items);
+  } catch(e){ toast(e.message, true); }
+  show('busy', false);
+};
+
+/* ---------------- New product ---------------- */
+function openNewProd(){
+  ['npName', 'npSizes', 'npColours', 'npPrice', 'npCost', 'npBrand', 'npHsn'].forEach(id => $(id).value = '');
+  $('npReorder').value = 5; $('npGst').value = 5;
+  $('npCat').innerHTML = '<option value="">Choose…</option>' + S.meta.productCategories.map(c => `<option>${esc(c)}</option>`).join('');
+  $('npSizeChips').innerHTML = ['S, M, L, XL', 'S, M, L, XL, XXL', '28, 30, 32, 34, 36', '2-3Y, 4-5Y, 6-7Y, 8-9Y', 'Free']
+    .map(x => `<button data-sz="${esc(x)}">${esc(x)}</button>`).join('');
+  npPreview();
+  show('vNewProd', true);
+  $('npName').focus();
+}
+const splitList = v => v.split(',').map(x => x.trim()).filter(Boolean);
+function npPreview(){
+  const n = splitList($('npSizes').value).length * splitList($('npColours').value).length;
+  $('npPreview').textContent = n ? `Creates ${n} item${n > 1 ? 's' : ''} (each size in each colour), each with its own barcode.` : '';
+}
+['npSizes', 'npColours'].forEach(id => $(id).addEventListener('input', npPreview));
+$('npSizeChips').onclick = e => { const b = e.target.closest('[data-sz]'); if (b) { $('npSizes').value = b.dataset.sz; npPreview(); } };
+$('npBack').onclick = () => show('vNewProd', false);
+$('npSave').onclick = async () => {
+  show('busy', true);
+  try {
+    const r = await call('createProduct', S.token, {
+      name: $('npName').value.trim(), category: $('npCat').value, brand: $('npBrand').value.trim(), hsn: $('npHsn').value.trim(),
+      gstPct: $('npGst').value, price: Number($('npPrice').value), cost: Number($('npCost').value),
+      sizes: splitList($('npSizes').value), colours: splitList($('npColours').value), reorderLevel: Number($('npReorder').value) || 0,
+    });
+    await loadCatalog();
+    show('vNewProd', false);
+    openStockIn(r.skus);
+  } catch(e){ toast(e.message, true); }
+  show('busy', false);
+};
+
+/* ---------------- Labels ---------------- */
+const LB = { lines: [], format: store.get('pos.labelFormat') || 'A4 sheet' };
+function openLabels(items){
+  if (items) items.forEach(i => { const l = LB.lines.find(x => x.sku === i.sku); if (l) l.copies += i.qty; else LB.lines.push({ sku: i.sku, copies: i.qty }); });
+  renderLabels();
+  show('vLabels', true);
+}
+function lbAdd(sku){
+  if (!S.bySku[sku]) return false;
+  const l = LB.lines.find(x => x.sku === sku);
+  if (l) l.copies++; else LB.lines.push({ sku, copies: 1 });
+  renderLabels();
+  return true;
+}
+function renderLabels(){
+  $('lbLines').innerHTML = LB.lines.map((l, i) => {
+    const it = S.bySku[l.sku] || { name: l.sku, colour: '', size: '', barcode: '' };
+    return `<div class="line">
+      <div><div class="pname">${esc(it.name)}</div><div class="pmeta">${esc(it.colour)} · ${esc(it.size)} · code ${esc(it.barcode || it.sku)}</div></div>
+      <div></div>
+      <div class="line-actions">
+        <div class="stepper"><button data-lbdec="${i}" aria-label="One less">−</button><span class="num">${l.copies}</span><button data-lbinc="${i}" aria-label="One more">+</button></div>
+        <span class="pmeta">labels</span><button class="link danger" data-lbrm="${i}">Remove</button>
+      </div></div>`;
+  }).join('') || '<div class="empty">Add the items you want labels for.</div>';
+  seg('lbFormat', ['A4 sheet', 'Label roll'], LB.format, v => { LB.format = v; store.set('pos.labelFormat', v); renderLabels(); });
+  const n = LB.lines.reduce((s, l) => s + l.copies, 0);
+  $('lbCount').textContent = n ? n + ' label' + (n > 1 ? 's' : '') : '';
+  $('lbPrint').disabled = !n;
+}
+$('lbLines').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  const d = b.dataset;
+  if (d.lbinc) LB.lines[d.lbinc].copies++;
+  if (d.lbdec) { LB.lines[d.lbdec].copies--; if (LB.lines[d.lbdec].copies < 1) LB.lines.splice(d.lbdec, 1); }
+  if (d.lbrm) LB.lines.splice(d.lbrm, 1);
+  renderLabels();
+};
+bindPicker('lbQ', 'lbResults', lbAdd);
+$('lbScan').onclick = () => openScanner('labels');
+$('lbAll').onclick = () => { S.items.forEach(i => { if (!LB.lines.find(x => x.sku === i.sku)) LB.lines.push({ sku: i.sku, copies: 1 }); }); renderLabels(); };
+$('lbClear').onclick = () => { if (LB.lines.length && confirm('Remove all items from the label list?')) { LB.lines = []; renderLabels(); } };
+$('lbBack').onclick = () => show('vLabels', false);
+$('lbPrint').onclick = async () => {
+  $('lbPrint').disabled = true;
+  await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js');
+  $('lbPrint').disabled = false;
+  if (typeof JsBarcode === 'undefined') return toast('The barcode tool did not load. Check the internet connection and try again.', true);
+  const roll = LB.format === 'Label roll';
+  const wrap = document.createElement('div');
+  wrap.className = roll ? 'roll' : 'a4grid';
+  let made = 0;
+  LB.lines.forEach(l => {
+    const it = S.bySku[l.sku]; if (!it) return;
+    const code = it.barcode || it.sku;
+    for (let k = 0; k < l.copies; k++) {
+      const d = document.createElement('div');
+      d.className = 'lbl';
+      if (!roll) { d.style.width = '63.5mm'; d.style.height = '33.9mm'; }
+      d.innerHTML = `<div class="ls">${esc(S.shop.name)}</div><div class="ln">${esc(it.name)}</div>
+        <div class="lv">${esc(it.colour)} · ${esc(it.size)}</div><svg></svg><div class="lp">${fmt(it.price)}</div>`;
+      try {
+        JsBarcode(d.querySelector('svg'), code, { format: 'CODE128', height: roll ? 26 : 30, width: roll ? 1.3 : 1.4,
+          displayValue: true, fontSize: 9, margin: 0, textMargin: 0 });
+      } catch(err){ d.querySelector('svg').outerHTML = `<div class="lv">Bad code: ${esc(code)}</div>`; }
+      wrap.appendChild(d); made++;
+    }
+  });
+  $('labelSheet').innerHTML = ''; $('labelSheet').appendChild(wrap);
+  $('pageStyle').textContent = roll ? '@page { size: 50mm 25mm; margin: 0; }' : '@page { size: A4; margin: 13mm 7mm; }';
+  if (made) printAs('labels');
+};
 
 boot().catch(e => showFatal('Startup failed: ' + (e.message || e)));
 </script>
