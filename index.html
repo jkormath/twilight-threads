@@ -181,6 +181,11 @@
   .pcard summary{cursor:pointer;font-weight:600;color:var(--indigo-2);padding:4px 0}
   .pcard .btnrow{display:flex;gap:12px;margin-top:6px}
   .stocklist div{display:flex;justify-content:space-between;padding:3px 0;border-top:1px dashed var(--line)}
+  .errbox{background:#FBEAEA;border:1px solid #E7B3B0;border-radius:var(--r-md);padding:10px 12px;margin-top:10px;font-size:14px}
+  .errbox ul,.okbox ul{margin:6px 0 0;padding-left:18px}
+  .okbox{background:#EEF6F1;border:1px solid #BBD9C7;border-radius:var(--r-md);padding:10px 12px;margin-top:10px;font-size:14px}
+  .filebox{border:1.5px dashed var(--line);background:#fff;border-radius:var(--r-md);padding:14px;margin:10px 0}
+  .filebox input[type=file]{width:100%;font:inherit}
   #labelSheet{display:none}
   @media print{
     body[data-print="receipt"] *{visibility:hidden}
@@ -245,6 +250,7 @@
       <button id="mExpense"><span><b>Add expense</b><small>Rent, salaries, transport, bills</small></span><span class="chev">›</span></button>
       <button id="mStockIn" class="owner-only"><span><b>Stock in</b><small>Record a supplier delivery</small></span><span class="chev">›</span></button>
       <button id="mNewProd" class="owner-only"><span><b>New product</b><small>Add a design with its sizes and colours</small></span><span class="chev">›</span></button>
+      <button id="mImport" class="owner-only"><span><b>Import products (Excel)</b><small>Add many products and opening stock from a spreadsheet</small></span><span class="chev">›</span></button>
       <button id="mTransfer" class="owner-only"><span><b>Transfer stock</b><small>Move pieces between main stock and a partner shop</small></span><span class="chev">›</span></button>
       <button id="mPartners" class="owner-only"><span><b>Partner shops</b><small>Their stock, sales this month, rent and commission terms</small></span><span class="chev">›</span></button>
       <button id="mSettle" class="owner-only"><span><b>Partner settlement</b><small>Month-end: commission, rent and money received</small></span><span class="chev">›</span></button>
@@ -462,6 +468,23 @@
   <div class="billbar"><button id="ceSave"><span id="ceSaveLabel">Save entry</span><span class="num" id="ceSaveAmt"></span></button></div>
 </section>
 
+<!-- Import products -->
+<section id="vImport" class="sheet hidden" aria-label="Import products">
+  <div class="sheet-head"><button class="icon-btn" id="imBack">Back</button><h2>Import products</h2></div>
+  <div class="wrap">
+    <p class="note">One row for every size and colour. Use the template so the columns match.</p>
+    <a class="link" href="product-upload-template.xlsx" download style="display:inline-block;padding:6px 0">Download the Excel template</a>
+    <div class="filebox">
+      <label for="imFile" class="pmeta" style="display:block;margin-bottom:6px">Choose your .xlsx, .xls or .csv file</label>
+      <input id="imFile" type="file" accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv">
+    </div>
+    <label class="check"><input type="checkbox" id="imCats"> Create categories that do not exist yet</label>
+    <label class="check"><input type="checkbox" id="imUpdate"> Update prices of items that already exist</label>
+    <div id="imResult"></div>
+  </div>
+  <div class="billbar hidden" id="imBar"><button id="imGo"><span id="imGoLabel">Import</span><span></span></button></div>
+</section>
+
 <!-- Labels -->
 <section id="vLabels" class="sheet hidden" aria-label="Barcode labels">
   <div class="sheet-head"><button class="icon-btn" id="lbBack">Back</button><h2>Barcode labels</h2><button class="link danger" id="lbClear">Clear</button></div>
@@ -493,7 +516,7 @@
 
 <script>
 window.POS_CONFIG = {
-  API_URL: 'https://script.google.com/macros/s/AKfycbwZh_v3HoD14pBsEIBlyg6ViFcQwADFBvIyupB2tvt5NxPvtMI076R6TQ9JusTt-FcyPQ/exec'
+  API_URL: 'https://script.google.com/macros/s/AKfycbz5gPcCtoFLKQDsgEKZe-86fLK1oPwXCkU_UsLPwKHcJQE7gM6MwRvAxZaaV7e6cibs/exec'
 };
 </script>
 <script>
@@ -936,7 +959,7 @@ document.addEventListener('keydown', e => {
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2);
 const todayISO = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 const isOpen = id => !$(id).classList.contains('hidden');
-const SHEETS = ['vBill', 'vReceipt', 'vReturn', 'vExpense', 'vStockIn', 'vNewProd', 'vLabels', 'vScan', 'vChannel', 'vTransfer', 'vPartners', 'vSettle', 'vOwners', 'vCapEntry'];
+const SHEETS = ['vBill', 'vReceipt', 'vReturn', 'vExpense', 'vStockIn', 'vNewProd', 'vLabels', 'vScan', 'vChannel', 'vTransfer', 'vPartners', 'vSettle', 'vOwners', 'vCapEntry', 'vImport'];
 
 async function loadMeta(){
   S.meta = await call('getMeta', S.token);
@@ -1701,6 +1724,142 @@ $('ceSave').onclick = async () => {
       amount: Number($('ceAmt').value), date: $('ceDate').value, paymentMode: CE.mode, notes: $('ceNotes').value.trim() });
     toast('Entry saved');
     show('vCapEntry', false); await loadOwners();
+  } catch(e){ toast(e.message, true); }
+  show('busy', false);
+};
+
+/* ---------------- Import products from a spreadsheet ---------------- */
+const XLSX_URL = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+const IM_FIELDS = {
+  name: ['productname', 'product', 'itemname', 'name', 'title'],
+  category: ['category', 'productcategory', 'categoryname'],
+  brand: ['brand'],
+  hsn: ['hsn', 'hsncode'],
+  gst: ['gst', 'gstpct', 'gstrate', 'gstpercent', 'tax', 'taxrate'],
+  colour: ['colour', 'color'],
+  size: ['size'],
+  sku: ['sku', 'itemcode'],
+  barcode: ['barcode', 'ean', 'upc', 'barcodenumber'],
+  cost: ['cost', 'costprice', 'purchaseprice', 'buyingprice'],
+  price: ['price', 'sellingprice', 'mrp', 'saleprice', 'retailprice'],
+  reorder: ['reorder', 'reorderlevel', 'minstock', 'minimumstock'],
+  qty: ['qty', 'quantity', 'openingqty', 'openingstock', 'openingquantity', 'stock'],
+};
+const IM_TEXT = ['name', 'category', 'brand', 'hsn', 'colour', 'size', 'sku', 'barcode'];
+const IM_BY_HEADER = {};
+Object.keys(IM_FIELDS).forEach(f => IM_FIELDS[f].forEach(h => { IM_BY_HEADER[h] = f; }));
+const imNorm = h => String(h == null ? '' : h).toLowerCase().replace(/[^a-z0-9]/g, '');
+const IM = { rows: [], clientId: null, fileName: '', ignored: [] };
+
+$('mImport').onclick = () => {
+  IM.rows = []; $('imFile').value = ''; $('imResult').innerHTML = ''; show('imBar', false);
+  show('vImport', true);
+};
+$('imBack').onclick = () => show('vImport', false);
+
+function imParse(grid){
+  let headerAt = -1, cols = {};
+  for (let i = 0; i < Math.min(grid.length, 15) && headerAt < 0; i++) {
+    const m = {};
+    grid[i].forEach((h, c) => { const f = IM_BY_HEADER[imNorm(h)]; if (f && m[f] === undefined) m[f] = c; });
+    if (m.name !== undefined && (m.price !== undefined || m.cost !== undefined)) { headerAt = i; cols = m; }
+  }
+  if (headerAt < 0) throw new Error('I could not find the Product Name and Selling Price columns. Please use the template, with its headings in the first row.');
+  const known = Object.values(cols);
+  IM.ignored = grid[headerAt].map((h, c) => ({ h: String(h || '').trim(), c })).filter(x => x.h && known.indexOf(x.c) < 0).map(x => x.h);
+  const rows = [];
+  for (let i = headerAt + 1; i < grid.length; i++) {
+    const g = grid[i];
+    if (g.every(v => String(v == null ? '' : v).trim() === '')) continue;
+    const o = { row: i + 1 };
+    Object.keys(IM_FIELDS).forEach(f => {
+      let v = cols[f] === undefined ? '' : g[cols[f]];
+      if (v == null) v = '';
+      if (IM_TEXT.indexOf(f) >= 0) v = typeof v === 'number' ? String(v) : String(v).trim();
+      o[f] = v;
+    });
+    rows.push(o);
+  }
+  return rows;
+}
+
+async function imReadFile(file){
+  await loadScript(XLSX_URL);
+  if (typeof XLSX === 'undefined') throw new Error('The spreadsheet reader did not load. Check the internet connection and try again.');
+  const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+  const name = wb.SheetNames.find(n => /^products?$/i.test(n)) || wb.SheetNames[0];
+  return XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, raw: true, defval: '' });
+}
+
+async function imCheck(){
+  if (!IM.rows.length) return;
+  IM.clientId = uid();
+  $('imResult').innerHTML = '<div class="empty">Checking ' + IM.rows.length + ' rows…</div>'; show('imBar', false);
+  try {
+    const r = await call('importProducts', S.token, { dryRun: true, rows: IM.rows,
+      updateExisting: $('imUpdate').checked, createCategories: $('imCats').checked });
+    renderImport(r);
+  } catch(e){ $('imResult').innerHTML = `<div class="errbox">${esc(e.message)}</div>`; }
+}
+
+function renderImport(r){
+  const s = r.summary;
+  const line = (a, b) => `<div><span>${a}</span><span>${b}</span></div>`;
+  let html = r.errorCount ? `<div class="totals num">${line('Rows read from ' + esc(IM.fileName), s.rows)}</div>` : `<div class="totals num">
+    ${line('Rows read from ' + esc(IM.fileName), s.rows)}
+    ${line('New products', s.newProducts)}
+    ${line('New items (size and colour)', s.newItems)}
+    ${s.updated ? line('Existing items updated', s.updated) : ''}
+    ${s.skipped ? line('Existing items skipped', s.skipped) : ''}
+    ${line('Opening stock', s.openingPieces + ' pcs · ' + fmt(s.openingValue) + ' at cost')}
+    ${s.newCategories.length ? line('New categories', esc(s.newCategories.join(', '))) : ''}</div>`;
+  if (r.errorCount) {
+    html += `<div class="errbox"><b>${r.errorCount} problem${r.errorCount > 1 ? 's' : ''} to fix. Nothing has been imported.</b><ul>` +
+      r.errors.slice(0, 30).map(e => `<li>Row ${e.row}: ${esc(e.message)}</li>`).join('') + '</ul>' +
+      (r.errorCount > 30 ? `<div class="pmeta">…and ${r.errorCount - 30} more. Fix these, then choose the file again.</div>` : '<div class="pmeta">Fix these in your file, then choose it again.</div>') + '</div>';
+  }
+  if (r.warningCount) {
+    html += `<details class="okbox"><summary><b>${r.warningCount} note${r.warningCount > 1 ? 's' : ''}</b></summary><ul>` +
+      r.warnings.slice(0, 30).map(w => `<li>Row ${w.row}: ${esc(w.message)}</li>`).join('') + '</ul></details>';
+  }
+  if (IM.ignored.length) html += `<p class="note">Columns not used: ${esc(IM.ignored.join(', '))}</p>`;
+  $('imResult').innerHTML = html;
+  const todo = s.newItems + s.updated;
+  $('imGo').disabled = !r.ok || todo < 1;
+  $('imGoLabel').textContent = r.ok ? (todo ? `Import ${s.newItems ? s.newItems + ' new item' + (s.newItems > 1 ? 's' : '') : ''}${s.newItems && s.updated ? ' and ' : ''}${s.updated ? 'update ' + s.updated : ''}` : 'Nothing new to import') : 'Fix the problems first';
+  show('imBar', true);
+}
+
+$('imFile').onchange = async () => {
+  const f = $('imFile').files[0]; if (!f) return;
+  IM.fileName = f.name; IM.rows = [];
+  $('imResult').innerHTML = '<div class="empty">Reading the file…</div>'; show('imBar', false);
+  try {
+    IM.rows = imParse(await imReadFile(f));
+    if (!IM.rows.length) throw new Error('I found the headings but no product rows under them.');
+    if (IM.rows.length > 500) throw new Error('This file has ' + IM.rows.length + ' rows. Please import at most 500 at a time.');
+    await imCheck();
+  } catch(e){ IM.rows = []; $('imResult').innerHTML = `<div class="errbox">${esc(e.message)}</div>`; }
+};
+$('imCats').onchange = $('imUpdate').onchange = imCheck;
+
+$('imGo').onclick = async () => {
+  show('busy', true);
+  try {
+    const r = await call('importProducts', S.token, { clientId: IM.clientId, rows: IM.rows,
+      updateExisting: $('imUpdate').checked, createCategories: $('imCats').checked });
+    if (!r.ok) { renderImport(r); toast('Some rows have problems. Nothing was imported.', true); }
+    else {
+      await loadCatalog();
+      S.meta.productCategories = (await call('getMeta', S.token)).productCategories;
+      const sm = r.summary;
+      IM.rows = []; $('imFile').value = ''; show('imBar', false);
+      $('imResult').innerHTML = `<div class="okbox"><b>Imported.</b> ${sm.newProducts} new product${sm.newProducts === 1 ? '' : 's'}, ${sm.newItems} new item${sm.newItems === 1 ? '' : 's'}${sm.updated ? ', ' + sm.updated + ' updated' : ''}${sm.openingPieces ? ', ' + sm.openingPieces + ' pieces of opening stock added to Main stock' : ''}.</div>`;
+      toast('Import complete');
+      if (r.items.length && confirm('Print barcode labels for the ' + r.items.length + ' new item' + (r.items.length > 1 ? 's' : '') + ' now?')) {
+        show('vImport', false); openLabels(r.items.map(i => ({ sku: i.sku, qty: Math.max(1, i.qty) })));
+      }
+    }
   } catch(e){ toast(e.message, true); }
   show('busy', false);
 };
